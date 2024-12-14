@@ -6,13 +6,13 @@ import random
 csv_url = "https://raw.githubusercontent.com/kwonsungja/app_nouns/main/regular_Nouns_real.csv"
 try:
     df = pd.read_csv(csv_url)
-    df.columns = df.columns.str.lower()  # 데이터프레임 열 이름을 소문자로 변환
+    df.columns = df.columns.str.lower()  # Make column names lowercase
 
-    # 공백 제거
+    # Remove whitespace
     df["singular"] = df["singular"].str.strip()
     df["level"] = df["level"].str.strip()
 except Exception as e:
-    print(f"CSV 파일을 불러오는 데 실패했습니다: {e}")
+    print(f"Failed to load the CSV file: {e}")
     exit()
 
 # Count the number of items in each level
@@ -33,7 +33,7 @@ def initialize_user_state():
     }
 
 def pluralize(noun):
-    noun = noun.strip()  # 문자열의 앞뒤 공백 제거
+    noun = noun.strip()  # Remove leading/trailing spaces
     if noun.endswith(('s', 'ss', 'sh', 'ch', 'x', 'z', 'o')):
         return noun + 'es'
     elif noun.endswith('y') and not noun[-2] in 'aeiou':
@@ -52,7 +52,7 @@ def filter_nouns_if_needed(level_with_count, user_state):
         user_state["score"] = 0
         user_state["trials"] = 0
         user_state["current_index"] = -1
-        return user_state, f"Level {level} selected. Click 'Show the Noun' to start!"
+        return user_state, f"Level {level} selected. Click 'Show Noun' to start!"
     return user_state, None
 
 def show_next_noun(level_with_count, user_state):
@@ -69,7 +69,7 @@ def check_plural(user_plural, user_state):
 
     index = user_state["current_index"]
     if index == -1:
-        return user_state, f"Please click 'Show the Noun' first. (Score: {user_state['score']}/{user_state['trials']})"
+        return user_state, f"Please click 'Show Noun' first. (Score: {user_state['score']}/{user_state['trials']})"
 
     noun_data = user_state["remaining_nouns"].iloc[index]
     singular = noun_data["singular"]
@@ -78,11 +78,10 @@ def check_plural(user_plural, user_state):
     user_state["trials"] += 1
     user_state["level_scores"][user_state["current_level"]]["trials"] += 1
 
-    # 사용자 입력과 정답 비교 시 공백 제거
     if user_plural.strip().lower() == correct_plural.strip().lower():
         user_state["score"] += 1
         user_state["level_scores"][user_state["current_level"]]["score"] += 1
-        feedback = f"✅ Correct! '{correct_plural}' is the plural form of '{singular}'. Click 'Show the Noun' to continue."
+        feedback = f"✅ Correct! '{correct_plural}' is the plural form of '{singular}'. Click 'Show Noun' to continue."
         user_state["remaining_nouns"] = user_state["remaining_nouns"].drop(user_state["remaining_nouns"].index[index])
     else:
         feedback = f"❌ Incorrect. The correct plural form is '{correct_plural}' for '{singular}'. It will appear again."
@@ -100,33 +99,43 @@ def display_total_score(user_state):
     return total_score
 
 with gr.Blocks() as app:
-    gr.Markdown("# NounSmart: Practice regular Plural Nouns")
+    gr.Markdown("# NounSmart: Practice Regular Plural Nouns")
     gr.Markdown("""
     ## How to Use the App
-    1. **Follow the steps from Step 1 to Step 4.**
-    2. **Click 'Show Report' to view overall feedback across all levels.**
+    1. **Select a Level and start practicing!**
+    2. **Follow the steps to answer and review your progress.**
     """)
 
-    level_dropdown = gr.Dropdown(
-        label="Step 1. Select a Level to start.",
-        choices=levels_with_counts,
-        value=levels_with_counts[0],
-        interactive=True
-    )
+    with gr.Row():
+        level_dropdown = gr.Dropdown(
+            label="Select Level",
+            choices=levels_with_counts,
+            value=levels_with_counts[0],
+            interactive=True
+        )
 
-    show_button = gr.Button("Step 2. Show the Noun")
-    noun_display = gr.Textbox(label="Singular Noun", value="Select a level to start", interactive=False)
+    with gr.Row():
+        show_button = gr.Button("Show Noun")
+        noun_display = gr.Textbox(label="Singular Noun", value="Select a level to start", interactive=False)
 
-    plural_input = gr.Textbox(label="Step 3. Type Your answer.", placeholder="Type your answer here")
+    with gr.Row():
+        plural_input = gr.Textbox(
+            label="Enter Your Answer",
+            placeholder="Type the plural form here",
+            interactive=True
+        )
 
-    submit_button = gr.Button("Step 4. See the Answer and Feedback")
-    feedback_display = gr.Textbox(label="Feedback and Score", interactive=False)
+    with gr.Row():
+        submit_button = gr.Button("Submit Answer")
+        feedback_display = gr.Textbox(label="Feedback", interactive=False)
 
-    total_score_button = gr.Button("Show Report")
-    total_score_display = gr.Textbox(label="Total Score by Levels", interactive=False)
+    with gr.Row():
+        total_score_button = gr.Button("Show Total Score")
+        total_score_display = gr.Textbox(label="Overall Score", interactive=False)
 
     state = gr.State(initialize_user_state())
 
+    # Functionality Connections
     show_button.click(fn=show_next_noun, inputs=[level_dropdown, state], outputs=[state, noun_display, plural_input])
     submit_button.click(fn=check_plural, inputs=[plural_input, state], outputs=[state, feedback_display])
     total_score_button.click(fn=display_total_score, inputs=state, outputs=total_score_display)
