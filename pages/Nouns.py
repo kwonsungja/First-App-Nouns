@@ -1,21 +1,24 @@
 import gradio as gr
 import pandas as pd
 import random
+from functools import lru_cache
 
-# Load the CSV file from the provided URL
-csv_url = "https://github.com/kwonsungja/First-App-Nouns/blob/main/regular_Nouns_real.csv"
-try:
-    df = pd.read_csv(csv_url)
-    df.columns = df.columns.str.lower()  # Make column names lowercase
+@lru_cache(maxsize=1)
+def load_csv():
+    # CSV URL을 업데이트
+    csv_url = "https://raw.githubusercontent.com/kwonsungja/First-App-Nouns/main/regular_Nouns_real.csv"
+    try:
+        df = pd.read_csv(csv_url)
+        df.columns = df.columns.str.lower()
+        df["singular"] = df["singular"].str.strip()
+        df["level"] = df["level"].str.strip()
+        return df
+    except Exception as e:
+        raise Exception(f"Failed to load the CSV file: {e}")
 
-    # Remove whitespace
-    df["singular"] = df["singular"].str.strip()
-    df["level"] = df["level"].str.strip()
-except Exception as e:
-    print(f"Failed to load the CSV file: {e}")
-    exit()
+df = load_csv()
 
-# Count the number of items in each level
+# 각 레벨의 항목 수 계산
 counts = df["level"].value_counts()
 levels_with_counts = [
     f"{level} ({counts.get(level, 0)} items)"
@@ -33,7 +36,7 @@ def initialize_user_state():
     }
 
 def pluralize(noun):
-    noun = noun.strip()  # Remove leading/trailing spaces
+    noun = noun.strip()
     if noun.endswith(('s', 'ss', 'sh', 'ch', 'x', 'z', 'o')):
         return noun + 'es'
     elif noun.endswith('y') and not noun[-2] in 'aeiou':
@@ -59,8 +62,8 @@ def show_next_noun(level_with_count, user_state):
     user_state, feedback = filter_nouns_if_needed(level_with_count, user_state)
     if user_state["remaining_nouns"].empty:
         return user_state, feedback or "All nouns have been answered correctly. Great job!", ""
-    user_state["current_index"] = random.randint(0, len(user_state["remaining_nouns"]) - 1)
-    selected_noun = user_state["remaining_nouns"].iloc[user_state["current_index"]]
+    selected_noun = user_state["remaining_nouns"].sample(1).iloc[0]
+    user_state["current_index"] = selected_noun.name
     return user_state, f"What's the plural form of '{selected_noun['singular']}'?", ""
 
 def check_plural(user_plural, user_state):
@@ -82,12 +85,9 @@ def check_plural(user_plural, user_state):
         user_state["score"] += 1
         user_state["level_scores"][user_state["current_level"]]["score"] += 1
         feedback = f"✅ Correct! '{correct_plural}' is the plural form of '{singular}'. Click 'Show Noun' to continue."
-        user_state["remaining_nouns"] = user_state["remaining_nouns"].drop(user_state["remaining_nouns"].index[index])
+        user_state["remaining_nouns"] = user_state["remaining_nouns"].drop(index)
     else:
-        feedback = f"❌ Incorrect. The correct plural form is '{correct_plural}' for '{singular}'. It will appear again."
-
-    if user_state["remaining_nouns"].empty:
-        feedback += f"\n🎉 All nouns have been answered correctly. Great job! (Score: {user_state['score']}/{user_state['trials']})"
+        feedback = f"❌ Incorrect. The correct plural form is '{correct_plural}' for '{singular}'."
 
     return user_state, f"{feedback} (Score: {user_state['score']}/{user_state['trials']})"
 
@@ -98,6 +98,7 @@ def display_total_score(user_state):
     )
     return total_score
 
+# Gradio 인터페이스 설정
 with gr.Blocks() as app:
     gr.Markdown("# NounSmart: Practice Regular Plural Nouns")
     gr.Markdown("""
@@ -135,7 +136,7 @@ with gr.Blocks() as app:
 
     state = gr.State(initialize_user_state())
 
-    # Functionality Connections
+    # 버튼 기능 연결
     show_button.click(fn=show_next_noun, inputs=[level_dropdown, state], outputs=[state, noun_display, plural_input])
     submit_button.click(fn=check_plural, inputs=[plural_input, state], outputs=[state, feedback_display])
     total_score_button.click(fn=display_total_score, inputs=state, outputs=total_score_display)
