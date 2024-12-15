@@ -3,7 +3,7 @@ import pandas as pd
 import random
 
 # Load the CSV file from the provided URL
-csv_url = "https://raw.githubusercontent.com/kwonsungja/app_nouns/main/regular_Nouns_real.csv"
+csv_url = "https://github.com/kwonsungja/First-App-Nouns/blob/main/regular_Nouns_real.csv"
 try:
     df = pd.read_csv(csv_url)
     df.columns = df.columns.str.lower()  # Make column names lowercase
