@@ -28,6 +28,8 @@ if "user_state" not in st.session_state:
         "current_index": -1,
         "level_scores": {level: {"score": 0, "trials": 0} for level in ["s", "es", "ies"]},
     }
+if "question" not in st.session_state:
+    st.session_state.question = ""
 
 # Helper functions
 def pluralize(noun):
@@ -97,19 +99,26 @@ st.write("## How to Use the App")
 st.write("1. Select a Level and start practicing!")
 st.write("2. Follow the steps to answer and review your progress.")
 
+# Level Selection
 levels = ["s", "es", "ies"]
 selected_level = st.selectbox("Select Level", levels, key="selected_level")
 
+# Show Noun Button
 if st.button("Show Noun"):
     st.session_state.user_state, question = show_next_noun(selected_level, st.session_state.user_state)
+    st.session_state.question = question
     st.write(question)
 
-if "current_index" in st.session_state.user_state and st.session_state.user_state["current_index"] != -1:
-    user_input = st.text_input("Enter Your Answer")
+# Display Question and Input
+if st.session_state.question:
+    st.text_input("Enter Your Answer", key="user_input")
     if st.button("Submit Answer"):
+        user_input = st.session_state.user_input
         st.session_state.user_state, feedback = check_plural(user_input, st.session_state.user_state)
         st.write(feedback)
 
+# Show Total Score
 if st.button("Show Total Score"):
     total_score = display_total_score(st.session_state.user_state)
     st.write(f"Overall Score: {total_score}")
+
